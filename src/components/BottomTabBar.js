@@ -9,8 +9,8 @@ import { SPACING } from '../theme/spacing';
 // [active icon, inactive icon] for each tab
 const TAB_ICONS = {
   Tasks: ['list', 'list-outline'],
-  Categories: ['folder', 'folder-outline'],
-  Completed: ['checkmark', 'checkmark'],
+  Focus: ['timer', 'timer-outline'],
+  Insights: ['stats-chart', 'stats-chart-outline'],
   Profile: ['person', 'person-outline'],
 };
 

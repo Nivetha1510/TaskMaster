@@ -88,6 +88,7 @@ export function AppProvider({ children }) {
       priority = DEFAULT_PRIORITY,
       reminder = null,
       repeat = null,
+      estimate = null,
       favorite = false,
       pinned = false,
       subtasks = [],
@@ -101,6 +102,7 @@ export function AppProvider({ children }) {
         priority,
         reminder,
         repeat,
+        estimate,
         favorite,
         pinned,
         nextTaskId: null,
@@ -237,6 +239,14 @@ export function AppProvider({ children }) {
     );
   }, []);
 
+  // Tasks in a deleted category are kept and show as "Uncategorized".
+  const deleteCategory = useCallback((categoryId) => {
+    setCategories((prev) => prev.filter((category) => category.id !== categoryId));
+    setTasks((prev) =>
+      prev.map((task) => (task.categoryId === categoryId ? { ...task, categoryId: null } : task))
+    );
+  }, []);
+
   const getCategoryName = useCallback(
     (categoryId) =>
       categories.find((category) => category.id === categoryId)?.name ?? 'Uncategorized',
@@ -261,6 +271,7 @@ export function AppProvider({ children }) {
       updateSettings,
       addCategory,
       updateCategory,
+      deleteCategory,
       getCategoryName,
     }),
     [
@@ -280,6 +291,7 @@ export function AppProvider({ children }) {
       updateSettings,
       addCategory,
       updateCategory,
+      deleteCategory,
       getCategoryName,
     ]
   );

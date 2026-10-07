@@ -12,6 +12,7 @@ const userKeys = (userId) => ({
   tasks: `@taskmaster/${userId}/tasks`,
   categories: `@taskmaster/${userId}/categories`,
   settings: `@taskmaster/${userId}/settings`,
+  focus: `@taskmaster/${userId}/focus`,
 });
 
 async function readJson(key, fallback = null) {
@@ -49,6 +50,11 @@ export const saveCategories = (userId, categories) =>
   writeJson(userKeys(userId).categories, categories);
 export const saveSettings = (userId, settings) =>
   writeJson(userKeys(userId).settings, settings);
+
+export const loadFocusSessions = async (userId) =>
+  (await readJson(userKeys(userId).focus, [])) ?? [];
+export const saveFocusSessions = (userId, sessions) =>
+  writeJson(userKeys(userId).focus, sessions);
 
 export async function claimLegacyData(userId) {
   const [tasks, categories] = await Promise.all([

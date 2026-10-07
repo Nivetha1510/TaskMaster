@@ -5,6 +5,8 @@ import { Feather, Ionicons } from '@expo/vector-icons';
 import Header from '../components/Header';
 import ProfileAvatarButton from '../components/ProfileAvatarButton';
 import TaskItem from '../components/TaskItem';
+import QuickAddBar from '../components/QuickAddBar';
+import DoNowModal from '../components/DoNowModal';
 import FAB from '../components/FAB';
 import EmptyState from '../components/EmptyState';
 import ConfirmModal from '../components/ConfirmModal';
@@ -20,9 +22,11 @@ import {
   getPriorityRank,
 } from '../data/taskOptions';
 import { getDueDateTime } from '../utils/date';
+import { getGreeting } from '../utils/greeting';
+import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../theme/ThemeContext';
 import { TYPOGRAPHY } from '../theme/typography';
-import { SIZES, SPACING } from '../theme/spacing';
+import { RADIUS, SIZES, SPACING } from '../theme/spacing';
 
 const getMenuOptions = (task) => [
   { value: 'edit', label: 'Edit', icon: 'edit-2' },
@@ -55,6 +59,9 @@ const COMPARATORS = {
 export default function TasksScreen({ navigation }) {
   const { colors: COLORS } = useTheme();
   const styles = useMemo(() => createStyles(COLORS), [COLORS]);
+  const { user } = useAuth();
+  const firstName = user?.name?.trim().split(/\s+/)[0];
+  const greeting = firstName ? `${getGreeting()}, ${firstName}` : getGreeting();
   const { tasks, isLoading, toggleTask, toggleFavorite, togglePin, deleteTask, duplicateTask, getCategoryName } = useApp();
 
   const [searchText, setSearchText] = useState('');
@@ -66,6 +73,7 @@ export default function TasksScreen({ navigation }) {
   const [isSortOpen, setIsSortOpen] = useState(false);
   const [menuTask, setMenuTask] = useState(null);
   const [taskToDelete, setTaskToDelete] = useState(null);
+  const [isDoNowOpen, setIsDoNowOpen] = useState(false);
 
   const openAddTask = () => navigation.navigate('AddTask');
   const openTaskDetails = (taskId) => navigation.navigate('TaskDetails', { taskId });
@@ -100,6 +108,17 @@ export default function TasksScreen({ navigation }) {
   tomorrowStart.setHours(0, 0, 0, 0);
   tomorrowStart.setDate(tomorrowStart.getDate() + 1);
   const isUpcoming = (task) => Boolean(task.dueDate) && new Date(task.dueDate) >= tomorrowStart;
+
+  // Daily progress: tasks finished today vs. everything on today's plate
+  // (finished today + still pending and not due in the future).
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const doneToday = tasks.filter(
+    (task) => task.completed && task.completedAt && new Date(task.completedAt) >= todayStart
+  ).length;
+  const pendingToday = tasks.filter((task) => !task.completed && !isUpcoming(task)).length;
+  const totalToday = doneToday + pendingToday;
+  const progress = totalToday === 0 ? 0 : doneToday / totalToday;
 
   const sections = [
     {
@@ -148,6 +167,39 @@ export default function TasksScreen({ navigation }) {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <Header title="My Tasks" right={<ProfileAvatarButton />} />
+      <Text style={styles.greeting}>{greeting}</Text>
+
+      <View style={styles.progressCard}>
+        <View style={styles.progressHeader}>
+          <Text style={styles.progressTitle}>Daily progress</Text>
+          <Text style={styles.progressValue}>
+            {doneToday}/{totalToday} done · {Math.round(progress * 100)}%
+          </Text>
+        </View>
+        <View
+          style={styles.progressTrack}
+          accessible
+          accessibilityRole="progressbar"
+          accessibilityLabel="Daily progress"
+          accessibilityValue={{ min: 0, max: 100, now: Math.round(progress * 100) }}
+        >
+          <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
+        </View>
+      </View>
+
+      <View style={styles.actionRow}>
+        <QuickAddBar />
+        <TouchableOpacity
+          style={styles.doNowButton}
+          onPress={() => setIsDoNowOpen(true)}
+          activeOpacity={0.8}
+          accessibilityRole="button"
+          accessibilityLabel="What should I do now?"
+        >
+          <Ionicons name="bulb-outline" size={18} color={COLORS.primary} />
+          <Text style={styles.doNowText}>Do now</Text>
+        </TouchableOpacity>
+      </View>
 
       <View style={styles.controls}>
         <SearchBar value={searchText} onChangeText={setSearchText} />
@@ -236,6 +288,12 @@ export default function TasksScreen({ navigation }) {
 
       <FAB onPress={openAddTask} />
 
+      <DoNowModal
+        visible={isDoNowOpen}
+        onClose={() => setIsDoNowOpen(false)}
+        onOpenTask={openTaskDetails}
+      />
+
       <OptionSheet
         visible={isFilterOpen}
         title="Filter by priority"
@@ -284,6 +342,67 @@ const createStyles = (COLORS) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
+  },
+  greeting: {
+    ...TYPOGRAPHY.secondary,
+    color: COLORS.textSecondary,
+    paddingHorizontal: SIZES.screenPadding,
+    paddingBottom: SPACING.sm,
+  },
+  progressCard: {
+    marginHorizontal: SIZES.screenPadding,
+    marginBottom: SPACING.md,
+    padding: SPACING.lg,
+    borderRadius: RADIUS.md,
+    borderWidth: SIZES.cardBorder,
+    borderColor: COLORS.divider,
+    backgroundColor: COLORS.inputBackground,
+  },
+  progressHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: SPACING.sm,
+  },
+  progressTitle: {
+    ...TYPOGRAPHY.taskTitle,
+    color: COLORS.textPrimary,
+  },
+  progressValue: {
+    ...TYPOGRAPHY.secondary,
+    color: COLORS.textSecondary,
+  },
+  progressTrack: {
+    height: 8,
+    borderRadius: RADIUS.round,
+    backgroundColor: COLORS.divider,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: RADIUS.round,
+    backgroundColor: COLORS.primary,
+  },
+  actionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: SIZES.screenPadding,
+    marginBottom: SPACING.md,
+  },
+  doNowButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: SPACING.lg,
+    height: SIZES.chipHeight + SPACING.sm,
+    borderRadius: RADIUS.round,
+    borderWidth: SIZES.cardBorder,
+    borderColor: COLORS.primary,
+    backgroundColor: COLORS.inputBackground,
+  },
+  doNowText: {
+    ...TYPOGRAPHY.button,
+    color: COLORS.primary,
+    marginLeft: SPACING.sm,
   },
   controls: {
     paddingHorizontal: SIZES.screenPadding,

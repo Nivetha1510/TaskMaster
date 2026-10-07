@@ -1,8 +1,8 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import TasksStack from './TasksStack';
-import CategoriesScreen from '../screens/CategoriesScreen';
-import CompletedScreen from '../screens/CompletedScreen';
+import FocusScreen from '../screens/FocusScreen';
+import InsightsScreen from '../screens/InsightsScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import BottomTabBar from '../components/BottomTabBar';
 
@@ -15,8 +15,8 @@ export default function BottomTabNavigator() {
       screenOptions={{ headerShown: false }}
     >
       <Tab.Screen name="Tasks" component={TasksStack} />
-      <Tab.Screen name="Categories" component={CategoriesScreen} />
-      <Tab.Screen name="Completed" component={CompletedScreen} />
+      <Tab.Screen name="Focus" component={FocusScreen} />
+      <Tab.Screen name="Insights" component={InsightsScreen} />
       <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>
   );

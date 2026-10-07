@@ -66,6 +66,22 @@ export const REPEAT_OPTIONS = [
 export const getRepeatLabel = (repeat) =>
   REPEAT_OPTIONS.find((option) => option.value === (repeat ?? null))?.label ?? 'Never';
 
+// value = minutes the task takes; null = no estimate
+export const ESTIMATE_OPTIONS = [
+  { value: null, label: 'Not set' },
+  { value: 5, label: '5 min' },
+  { value: 15, label: '15 min' },
+  { value: 30, label: '30 min' },
+  { value: 60, label: '1 hour' },
+  { value: 120, label: '2 hours' },
+];
+
+// Tasks without an estimate are assumed to take this long when matching them to free time.
+export const DEFAULT_ESTIMATE = 15;
+
+export const formatEstimate = (minutes) =>
+  minutes % 60 === 0 && minutes >= 60 ? `${minutes / 60} hr` : `${minutes} min`;
+
 export const FILTER_OPTIONS = [
   { value: 'all', label: 'All' },
   { value: 'pending', label: 'Pending' },

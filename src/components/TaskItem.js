@@ -6,7 +6,7 @@ import { useTheme } from '../theme/ThemeContext';
 import { TYPOGRAPHY } from '../theme/typography';
 import { RADIUS, SIZES, SPACING } from '../theme/spacing';
 import { formatDueDate } from '../utils/date';
-import { getPriorityColor, getPriorityLabel, getRepeatLabel } from '../data/taskOptions';
+import { formatEstimate, getPriorityColor, getPriorityLabel, getRepeatLabel } from '../data/taskOptions';
 
 function MetaItem({ icon, text, color }) {
   const { colors: COLORS } = useTheme();
@@ -41,6 +41,11 @@ export default function TaskItem({
           {task.pinned ? (
             <Ionicons name="pin" size={14} color={COLORS.primary} style={styles.pinIcon} />
           ) : null}
+          <View
+            style={[styles.priorityDot, { backgroundColor: getPriorityColor(task.priority, COLORS) }]}
+            accessible
+            accessibilityLabel={`${getPriorityLabel(task.priority)} priority`}
+          />
           <Text
             style={[styles.title, task.completed && styles.titleCompleted]}
             numberOfLines={2}
@@ -50,11 +55,7 @@ export default function TaskItem({
         </View>
         <View style={styles.meta}>
           <MetaItem icon="tag" text={categoryName} />
-          <MetaItem
-            icon="flag"
-            text={`${getPriorityLabel(task.priority)} priority`}
-            color={getPriorityColor(task.priority, COLORS)}
-          />
+          {task.estimate ? <MetaItem icon="clock" text={formatEstimate(task.estimate)} /> : null}
           {task.dueDate ? <MetaItem icon="calendar" text={formatDueDate(task)} /> : null}
           {task.repeat ? (
             <MetaItem icon="repeat" text={`Repeats ${getRepeatLabel(task.repeat).toLowerCase()}`} />
@@ -116,6 +117,12 @@ const createStyles = (COLORS) => StyleSheet.create({
   },
   pinIcon: {
     marginRight: SPACING.xs,
+  },
+  priorityDot: {
+    width: 10,
+    height: 10,
+    borderRadius: RADIUS.round,
+    marginRight: SPACING.sm,
   },
   title: {
     ...TYPOGRAPHY.taskTitle,

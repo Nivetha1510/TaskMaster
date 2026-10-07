@@ -1,16 +1,16 @@
 export const LIGHT_COLORS = {
-  primary: '#126EED',
-  primaryPressed: '#3D6AA6', // pressed/disabled state shown in the PDF
+  primary: '#0F766E', // deep teal
+  primaryPressed: '#5E9A94', // pressed/disabled state
 
-  background: '#FFFFFF',
-  inputBackground: '#EEF1F4',
+  background: '#EEF3F9', // soft cool blue-grey
+  inputBackground: '#E1E9F3',
 
   textPrimary: '#111418',
   textSecondary: '#64748B',
   textOnPrimary: '#FFFFFF',
 
-  border: '#D5DBE1', // checkbox border
-  divider: '#E5E8EC', // tab bar top line
+  border: '#C5D0DF', // checkbox border
+  divider: '#D6DFEB', // tab bar top line
 
   shadow: '#000000',
   overlay: 'rgba(17, 20, 24, 0.4)', // dimmed backdrop behind bottom sheets
@@ -30,18 +30,18 @@ export const LIGHT_COLORS = {
 };
 
 export const DARK_COLORS = {
-  primary: '#126EED',
-  primaryPressed: '#3D6AA6',
+  primary: '#0E9F92', // brighter teal for contrast on navy
+  primaryPressed: '#2F7A73',
 
-  background: '#0F1318',
-  inputBackground: '#1B2129',
+  background: '#0B1426', // deep navy
+  inputBackground: '#16223A',
 
   textPrimary: '#F2F4F7',
   textSecondary: '#9AA4B2',
   textOnPrimary: '#FFFFFF',
 
-  border: '#3A4452',
-  divider: '#262E38',
+  border: '#35466A',
+  divider: '#1F2D48',
 
   shadow: '#000000',
   overlay: 'rgba(0, 0, 0, 0.6)',

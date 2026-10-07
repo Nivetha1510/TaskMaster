@@ -10,6 +10,7 @@ import {
   Lexend_600SemiBold,
   Lexend_700Bold,
 } from '@expo-google-fonts/lexend';
+import ResponsiveContainer from './src/components/ResponsiveContainer';
 import AppNavigator from './src/navigation/AppNavigator';
 import { AuthProvider } from './src/context/AuthContext';
 import { AppProvider } from './src/context/AppContext';
@@ -64,7 +65,9 @@ export default function App() {
       <ThemeProvider>
         <AuthProvider>
           <AppProvider>
-            <ThemedNavigation />
+            <ResponsiveContainer>
+              <ThemedNavigation />
+            </ResponsiveContainer>
           </AppProvider>
         </AuthProvider>
       </ThemeProvider>

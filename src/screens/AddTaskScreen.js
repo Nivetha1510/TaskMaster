@@ -17,12 +17,14 @@ import CustomInput from '../components/CustomInput';
 import PrimaryButton from '../components/PrimaryButton';
 import SubtaskItem from '../components/SubtaskItem';
 import CategoryPickerModal from '../components/CategoryPickerModal';
+import ConfirmModal from '../components/ConfirmModal';
+import CategoryModal from '../components/CategoryModal';
 import DatePickerModal from '../components/DatePickerModal';
 import TimePickerModal from '../components/TimePickerModal';
 import OptionChips from '../components/OptionChips';
 import { useApp } from '../context/AppContext';
 import { formatDate, formatTime } from '../utils/date';
-import { PRIORITY_OPTIONS, REMINDER_OPTIONS, REPEAT_OPTIONS } from '../data/taskOptions';
+import { ESTIMATE_OPTIONS, PRIORITY_OPTIONS, REMINDER_OPTIONS, REPEAT_OPTIONS } from '../data/taskOptions';
 import { generateId } from '../utils/id';
 import { useTheme } from '../theme/ThemeContext';
 import { TYPOGRAPHY } from '../theme/typography';
@@ -31,7 +33,7 @@ import { SIZES, SPACING } from '../theme/spacing';
 export default function AddTaskScreen({ navigation, route }) {
   const { colors: COLORS } = useTheme();
   const styles = useMemo(() => createStyles(COLORS), [COLORS]);
-  const { tasks, categories, settings, addTask, updateTask } = useApp();
+  const { tasks, categories, settings, addTask, updateTask, addCategory, updateCategory, deleteCategory } = useApp();
   const subtaskInputRef = useRef(null);
 
   const editingTaskId = route.params?.taskId;
@@ -45,6 +47,7 @@ export default function AddTaskScreen({ navigation, route }) {
   ); // a Date object, or null
   const [dueTime, setDueTime] = useState(editingTask?.dueTime ?? null); // 'HH:MM', or null
   const [priority, setPriority] = useState(editingTask?.priority ?? settings.defaultPriority);
+  const [estimate, setEstimate] = useState(editingTask?.estimate ?? null); // minutes, or null
   const [reminder, setReminder] = useState(editingTask?.reminder ?? null); // minutes before, or null
   const [repeat, setRepeat] = useState(editingTask?.repeat ?? null); // 'daily' | 'weekly' | 'monthly'
   const [favorite, setFavorite] = useState(editingTask?.favorite ?? false);
@@ -61,11 +64,49 @@ export default function AddTaskScreen({ navigation, route }) {
   const [subtaskText, setSubtaskText] = useState('');
   const [categoryError, setCategoryError] = useState('');
   const [isCategoryPickerOpen, setIsCategoryPickerOpen] = useState(false);
+  const [isNewCategoryOpen, setIsNewCategoryOpen] = useState(false);
+  const [categoryToEdit, setCategoryToEdit] = useState(null); // null means adding
+  const [categoryToDelete, setCategoryToDelete] = useState(null);
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const [isTimePickerOpen, setIsTimePickerOpen] = useState(false);
 
   const selectedCategory = categories.find((category) => category.id === categoryId);
   const canSave = title.trim().length > 0;
+
+  // Let the picker sheet finish closing before the next modal opens (iOS drops it otherwise).
+  const handleCreateCategory = () => {
+    setCategoryToEdit(null);
+    setIsCategoryPickerOpen(false);
+    setTimeout(() => setIsNewCategoryOpen(true), 300);
+  };
+
+  const handleEditCategory = (category) => {
+    setCategoryToEdit(category);
+    setIsCategoryPickerOpen(false);
+    setTimeout(() => setIsNewCategoryOpen(true), 300);
+  };
+
+  const handleDeleteCategory = (category) => {
+    setIsCategoryPickerOpen(false);
+    setTimeout(() => setCategoryToDelete(category), 300);
+  };
+
+  const handleSaveCategory = (name) => {
+    if (categoryToEdit) {
+      updateCategory(categoryToEdit.id, name);
+    } else {
+      const created = addCategory(name);
+      setCategoryId(created.id);
+      setCategoryError('');
+    }
+    setIsNewCategoryOpen(false);
+  };
+
+  const handleConfirmDeleteCategory = () => {
+    deleteCategory(categoryToDelete.id);
+    if (categoryToDelete.id === categoryId) setCategoryId(null);
+    setCategoryToDelete(null);
+  };
 
   const handleSelectCategory = (id) => {
     setCategoryId(id);
@@ -126,6 +167,7 @@ export default function AddTaskScreen({ navigation, route }) {
         priority,
         reminder: savedReminder,
         repeat: savedRepeat,
+        estimate,
         favorite,
         pinned,
         subtasks: [
@@ -144,6 +186,7 @@ export default function AddTaskScreen({ navigation, route }) {
         priority,
         reminder: savedReminder,
         repeat: savedRepeat,
+        estimate,
         favorite,
         pinned,
         subtasks: [
@@ -203,6 +246,9 @@ export default function AddTaskScreen({ navigation, route }) {
               <OptionChips options={REPEAT_OPTIONS} value={repeat} onChange={setRepeat} />
             </>
           ) : null}
+
+          <Text style={styles.fieldTitle}>Time needed</Text>
+          <OptionChips options={ESTIMATE_OPTIONS} value={estimate} onChange={setEstimate} />
 
           <Text style={styles.fieldTitle}>Priority</Text>
           <OptionChips options={PRIORITY_OPTIONS} value={priority} onChange={setPriority} />
@@ -271,7 +317,30 @@ export default function AddTaskScreen({ navigation, route }) {
         categories={categories}
         selectedId={categoryId}
         onSelect={handleSelectCategory}
+        onCreate={handleCreateCategory}
+        onEdit={handleEditCategory}
+        onDelete={handleDeleteCategory}
         onClose={() => setIsCategoryPickerOpen(false)}
+      />
+
+      <CategoryModal
+        visible={isNewCategoryOpen}
+        title={categoryToEdit ? 'Edit category' : 'New category'}
+        initialName={categoryToEdit?.name ?? ''}
+        otherNames={categories
+          .filter((category) => category.id !== categoryToEdit?.id)
+          .map((category) => category.name)}
+        onSave={handleSaveCategory}
+        onCancel={() => setIsNewCategoryOpen(false)}
+      />
+
+      <ConfirmModal
+        visible={Boolean(categoryToDelete)}
+        title="Delete category"
+        message={`Delete "${categoryToDelete?.name ?? ''}"? Its tasks will be kept as Uncategorized.`}
+        confirmText="Delete"
+        onConfirm={handleConfirmDeleteCategory}
+        onCancel={() => setCategoryToDelete(null)}
       />
 
       <TimePickerModal

@@ -19,6 +19,9 @@ export default function CategoryPickerModal({
   categories,
   selectedId,
   onSelect,
+  onCreate,
+  onEdit,
+  onDelete,
   onClose,
 }) {
   const { colors: COLORS } = useTheme();
@@ -39,21 +42,49 @@ export default function CategoryPickerModal({
             {categories.map((category) => {
               const selected = category.id === selectedId;
               return (
-                <TouchableOpacity
-                  key={category.id}
-                  style={styles.option}
-                  onPress={() => onSelect(category.id)}
-                  activeOpacity={0.6}
-                >
-                  <Text style={[styles.optionText, selected && styles.optionTextSelected]}>
-                    {category.name}
-                  </Text>
-                  {selected ? (
-                    <Feather name="check" size={20} color={COLORS.primary} />
+                <View key={category.id} style={styles.optionRow}>
+                  <TouchableOpacity
+                    style={styles.optionMain}
+                    onPress={() => onSelect(category.id)}
+                    activeOpacity={0.6}
+                  >
+                    <Text style={[styles.optionText, selected && styles.optionTextSelected]}>
+                      {category.name}
+                    </Text>
+                    {selected ? (
+                      <Feather name="check" size={20} color={COLORS.primary} />
+                    ) : null}
+                  </TouchableOpacity>
+                  {onEdit ? (
+                    <TouchableOpacity
+                      style={styles.iconButton}
+                      onPress={() => onEdit(category)}
+                      hitSlop={8}
+                      accessibilityLabel={`Edit ${category.name}`}
+                    >
+                      <Feather name="edit-2" size={18} color={COLORS.textSecondary} />
+                    </TouchableOpacity>
                   ) : null}
-                </TouchableOpacity>
+                  {onDelete ? (
+                    <TouchableOpacity
+                      style={styles.iconButton}
+                      onPress={() => onDelete(category)}
+                      hitSlop={8}
+                      accessibilityLabel={`Delete ${category.name}`}
+                    >
+                      <Feather name="trash-2" size={18} color={COLORS.error} />
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
               );
             })}
+
+            {onCreate ? (
+              <TouchableOpacity style={styles.option} onPress={onCreate} activeOpacity={0.6}>
+                <Text style={styles.createText}>New category</Text>
+                <Feather name="plus" size={20} color={COLORS.primary} />
+              </TouchableOpacity>
+            ) : null}
           </ScrollView>
         </Pressable>
       </Pressable>
@@ -89,6 +120,26 @@ const createStyles = (COLORS) => StyleSheet.create({
   optionText: {
     ...TYPOGRAPHY.body,
     color: COLORS.textPrimary,
+  },
+  optionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  optionMain: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: SPACING.md + 2,
+  },
+  iconButton: {
+    marginLeft: SPACING.lg,
+    padding: SPACING.xs,
+  },
+  createText: {
+    ...TYPOGRAPHY.body,
+    fontFamily: FONTS.semiBold,
+    color: COLORS.primary,
   },
   optionTextSelected: {
     fontFamily: FONTS.semiBold,
