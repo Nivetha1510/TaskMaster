@@ -36,6 +36,7 @@ export default function SettingsScreen({ navigation }) {
   const [isPasswordOpen, setIsPasswordOpen] = useState(false);
   const [isClearOpen, setIsClearOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
 
   const completedCount = tasks.filter((task) => task.completed).length;
 
@@ -225,13 +226,23 @@ export default function SettingsScreen({ navigation }) {
       <ConfirmModal
         visible={isDeleteOpen}
         title="Delete account"
-        message="This permanently deletes your account and all of its tasks from this device. This can't be undone."
+        message="This permanently deletes your account and all of its tasks from every device. This can't be undone."
         confirmText="Delete"
-        onConfirm={() => {
+        onConfirm={async () => {
           setIsDeleteOpen(false);
-          deleteAccount();
+          const result = await deleteAccount();
+          if (result?.error) setDeleteError(result.error);
         }}
         onCancel={() => setIsDeleteOpen(false)}
+      />
+
+      <ConfirmModal
+        visible={Boolean(deleteError)}
+        title="Could not delete account"
+        message={deleteError}
+        confirmText="OK"
+        onConfirm={() => setDeleteError('')}
+        onCancel={() => setDeleteError('')}
       />
     </SafeAreaView>
   );

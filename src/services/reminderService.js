@@ -1,10 +1,13 @@
 import { Platform } from 'react-native';
 import { isRunningInExpoGo } from 'expo';
 import { getDueDateTime } from '../utils/date';
+import { TEST_INTERVAL, getHabitSlots } from '../data/habits';
 
 const CHANNEL_ID = 'reminders';
 const ID_PREFIX = 'task-reminder-';
 const SUMMARY_ID = 'daily-summary';
+const HABIT_CHANNEL_ID = 'habits';
+const HABIT_PREFIX = 'habit-';
 
 // expo-notifications does not work on web, and on Android it crashes the moment it is
 // imported inside Expo Go (SDK 53+). So it is only loaded where it can run; use a
@@ -85,7 +88,7 @@ function getSummaryBody(count) {
 // if the app has not been opened for a while.
 export async function syncReminders(
   tasks,
-  { remindersEnabled = true, dailySummary = false, summaryTime = '08:00' } = {}
+  { remindersEnabled = true, dailySummary = false, summaryTime = '08:00', habits = [] } = {}
 ) {
   if (!isSupported) return;
   try {
@@ -95,12 +98,32 @@ export async function syncReminders(
     const wantedIds = new Set(wanted.map(({ task }) => `${ID_PREFIX}${task.id}`));
     if (dailySummary) wantedIds.add(SUMMARY_ID);
 
+    // Habit reminders: one repeating daily notification per time slot of each enabled habit.
+    const habitRequests = habits
+      .filter((habit) => habit.enabled)
+      .flatMap((habit) =>
+        getHabitSlots(habit).map((slot, index) => ({
+          identifier: `${HABIT_PREFIX}${habit.id}-${index}`,
+          habit,
+          slot,
+        }))
+      );
+    habitRequests.forEach(({ identifier }) => wantedIds.add(identifier));
+
+    // Test habits repeat every few minutes from now, so they can be tried without waiting.
+    const testHabits = habits.filter(
+      (habit) => habit.enabled && habit.intervalMinutes === TEST_INTERVAL
+    );
+    testHabits.forEach((habit) => wantedIds.add(`${HABIT_PREFIX}${habit.id}-test`));
+
     const scheduled = await Notifications.getAllScheduledNotificationsAsync();
     await Promise.all(
       scheduled
         .filter(
           (n) =>
-            (n.identifier.startsWith(ID_PREFIX) || n.identifier === SUMMARY_ID) &&
+            (n.identifier.startsWith(ID_PREFIX) ||
+              n.identifier.startsWith(HABIT_PREFIX) ||
+              n.identifier === SUMMARY_ID) &&
             !wantedIds.has(n.identifier)
         )
         .map((n) => Notifications.cancelScheduledNotificationAsync(n.identifier))
@@ -113,6 +136,13 @@ export async function syncReminders(
       await Notifications.setNotificationChannelAsync(CHANNEL_ID, {
         name: 'Task reminders',
         importance: Notifications.AndroidImportance.HIGH,
+      });
+    }
+
+    if (Platform.OS === 'android' && (habitRequests.length > 0 || testHabits.length > 0)) {
+      await Notifications.setNotificationChannelAsync(HABIT_CHANNEL_ID, {
+        name: 'Healthy habits',
+        importance: Notifications.AndroidImportance.DEFAULT,
       });
     }
 
@@ -143,6 +173,39 @@ export async function syncReminders(
         })
       );
     }
+
+    // Re-scheduling would restart the countdown, so leave an existing test reminder alone.
+    testHabits.forEach((habit) => {
+      const identifier = `${HABIT_PREFIX}${habit.id}-test`;
+      if (scheduled.some((n) => n.identifier === identifier)) return;
+      requests.push(
+        Notifications.scheduleNotificationAsync({
+          identifier,
+          content: { title: habit.title, body: habit.message },
+          trigger: {
+            type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+            seconds: TEST_INTERVAL * 60,
+            repeats: true,
+            channelId: HABIT_CHANNEL_ID,
+          },
+        })
+      );
+    });
+
+    habitRequests.forEach(({ identifier, habit, slot }) => {
+      requests.push(
+        Notifications.scheduleNotificationAsync({
+          identifier,
+          content: { title: habit.title, body: habit.message },
+          trigger: {
+            type: Notifications.SchedulableTriggerInputTypes.DAILY,
+            hour: slot.hour,
+            minute: slot.minute,
+            channelId: HABIT_CHANNEL_ID,
+          },
+        })
+      );
+    });
 
     await Promise.all(requests);
   } catch (error) {

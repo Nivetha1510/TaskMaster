@@ -1,9 +1,10 @@
 import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import Avatar from './Avatar';
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
-import { getTaskAlerts } from '../utils/alerts';
+import { getTaskAlerts, withoutDismissed } from '../utils/alerts';
 import { useTheme } from '../theme/ThemeContext';
 import { TYPOGRAPHY } from '../theme/typography';
 import { RADIUS, SIZES, SPACING } from '../theme/spacing';
@@ -19,7 +20,10 @@ export default function ProfileAvatarButton() {
 
   if (!user) return null;
 
-  const alertCount = getTaskAlerts(tasks, settings.remindersEnabled).length;
+  const alertCount = withoutDismissed(
+    getTaskAlerts(tasks, settings.remindersEnabled),
+    settings.dismissedAlerts
+  ).length;
 
   return (
     <TouchableOpacity
@@ -29,7 +33,7 @@ export default function ProfileAvatarButton() {
       accessibilityRole="button"
       accessibilityLabel={`Logged in as ${user.name}. ${alertCount} notifications. Open profile`}
     >
-      <Text style={styles.initial}>{user.name.charAt(0).toUpperCase()}</Text>
+      <Avatar name={user.name} photo={user.photo} size={SIZES.avatarSmall} />
       {alertCount > 0 ? (
         <View style={styles.badge}>
           <Text style={styles.badgeText}>{alertCount > 9 ? '9+' : alertCount}</Text>
@@ -44,9 +48,6 @@ const createStyles = (COLORS) => StyleSheet.create({
     width: SIZES.avatarSmall,
     height: SIZES.avatarSmall,
     borderRadius: RADIUS.round,
-    backgroundColor: COLORS.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   badge: {
     position: 'absolute',
@@ -62,10 +63,6 @@ const createStyles = (COLORS) => StyleSheet.create({
   },
   badgeText: {
     ...TYPOGRAPHY.navLabel,
-    color: COLORS.textOnPrimary,
-  },
-  initial: {
-    ...TYPOGRAPHY.button,
     color: COLORS.textOnPrimary,
   },
 });

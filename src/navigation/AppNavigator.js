@@ -4,6 +4,8 @@ import SplashScreen from '../screens/SplashScreen';
 import LoginScreen from '../screens/LoginScreen';
 import SignUpScreen from '../screens/SignUpScreen';
 import SettingsScreen from '../screens/SettingsScreen';
+import HabitsScreen from '../screens/HabitsScreen';
+import HabitEditScreen from '../screens/HabitEditScreen';
 import BottomTabNavigator from './BottomTabNavigator';
 import { useAuth } from '../context/AuthContext';
 
@@ -32,6 +34,8 @@ export default function AppNavigator() {
         <>
           <Stack.Screen name="Main" component={BottomTabNavigator} />
           <Stack.Screen name="Settings" component={SettingsScreen} />
+          <Stack.Screen name="Habits" component={HabitsScreen} />
+          <Stack.Screen name="HabitEdit" component={HabitEditScreen} />
         </>
       ) : (
         <>

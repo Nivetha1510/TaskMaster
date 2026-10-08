@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { readDoc, writeDoc } from './cloudService';
 
 const KEYS = {
   users: '@taskmaster/users',
@@ -51,10 +52,13 @@ export const saveCategories = (userId, categories) =>
 export const saveSettings = (userId, settings) =>
   writeJson(userKeys(userId).settings, settings);
 
-export const loadFocusSessions = async (userId) =>
+// Focus sessions live in the cloud so they follow the user across devices.
+export const loadFocusSessions = async (userId) => (await readDoc(userId, 'focus')) ?? [];
+export const saveFocusSessions = (userId, sessions) => writeDoc(userId, 'focus', sessions);
+
+// Sessions saved on this device before cloud accounts (used for the one-time upload).
+export const loadLocalFocusSessions = async (userId) =>
   (await readJson(userKeys(userId).focus, [])) ?? [];
-export const saveFocusSessions = (userId, sessions) =>
-  writeJson(userKeys(userId).focus, sessions);
 
 export async function claimLegacyData(userId) {
   const [tasks, categories] = await Promise.all([

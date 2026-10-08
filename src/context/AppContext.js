@@ -7,7 +7,8 @@ import React, {
   useState,
 } from 'react';
 import { useAuth } from './AuthContext';
-import { loadData, saveTasks, saveCategories, saveSettings } from '../services/storageService';
+import { subscribeDoc, writeDoc, forgetUser } from '../services/cloudService';
+import { migrateLocalData } from '../services/migrationService';
 import { SEED_CATEGORIES } from '../data/seedData';
 import { generateId } from '../utils/id';
 import { syncReminders } from '../services/reminderService';
@@ -25,7 +26,8 @@ export function AppProvider({ children }) {
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Load the signed-in user's data. New accounts start with the default categories.
+  // Load the signed-in user's data from the cloud and keep it live: a change made on
+  // another phone or browser shows up here. New accounts start with the default categories.
   // Logging out empties everything and cancels the reminders.
   useEffect(() => {
     if (!userId) {
@@ -38,32 +40,57 @@ export function AppProvider({ children }) {
     }
 
     let cancelled = false;
+    const unsubscribers = [];
+    const loaded = new Set();
     setIsLoading(true);
+
+    // `apply` runs for the first snapshot of each document, then only for real changes.
+    const listen = (key, apply) => {
+      unsubscribers.push(
+        subscribeDoc(
+          userId,
+          key,
+          (value, changed) => {
+            if (cancelled) return;
+            const isFirst = !loaded.has(key);
+            if (!isFirst && !changed) return;
+            apply(value);
+            loaded.add(key);
+            if (loaded.size === 3) setIsLoading(false);
+          },
+          (error) => console.warn(`Could not sync ${key}:`, error)
+        )
+      );
+    };
+
     async function init() {
-      const stored = await loadData(userId);
+      await migrateLocalData(userId, user.email);
       if (cancelled) return;
-      setTasks(stored.tasks ?? []);
-      setCategories(stored.categories ?? SEED_CATEGORIES);
-      setSettings({ ...DEFAULT_SETTINGS, ...stored.settings });
-      setIsLoading(false);
+      listen('tasks', (value) => setTasks(value ?? []));
+      listen('categories', (value) => setCategories(value ?? SEED_CATEGORIES));
+      listen('settings', (value) => setSettings({ ...DEFAULT_SETTINGS, ...value }));
     }
     init();
+
     return () => {
       cancelled = true;
+      unsubscribers.forEach((unsubscribe) => unsubscribe());
+      forgetUser(userId);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
 
   // Save whenever data changes (but not before the first load finishes).
   useEffect(() => {
-    if (userId && !isLoading) saveTasks(userId, tasks);
+    if (userId && !isLoading) writeDoc(userId, 'tasks', tasks);
   }, [userId, tasks, isLoading]);
 
   useEffect(() => {
-    if (userId && !isLoading) saveCategories(userId, categories);
+    if (userId && !isLoading) writeDoc(userId, 'categories', categories);
   }, [userId, categories, isLoading]);
 
   useEffect(() => {
-    if (userId && !isLoading) saveSettings(userId, settings);
+    if (userId && !isLoading) writeDoc(userId, 'settings', settings);
   }, [userId, settings, isLoading]);
 
   // Keep scheduled reminders in step with the tasks and the reminders setting.

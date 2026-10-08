@@ -28,6 +28,13 @@
       "@react-native-community/datetimepicker",
       "expo-notifications",
       [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow TaskMaster to access your photos so you can set a profile picture.",
+          "cameraPermission": "Allow TaskMaster to use the camera so you can take a profile picture."
+        }
+      ],
+      [
         "expo-speech-recognition",
         {
           "microphonePermission": "Allow TaskMaster to use the microphone to create tasks by voice.",

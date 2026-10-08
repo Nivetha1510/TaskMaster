@@ -25,7 +25,7 @@ import { getDueDateTime } from '../utils/date';
 import { getGreeting } from '../utils/greeting';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../theme/ThemeContext';
-import { TYPOGRAPHY } from '../theme/typography';
+import { FONTS, TYPOGRAPHY } from '../theme/typography';
 import { RADIUS, SIZES, SPACING } from '../theme/spacing';
 
 const getMenuOptions = (task) => [
@@ -61,7 +61,7 @@ export default function TasksScreen({ navigation }) {
   const styles = useMemo(() => createStyles(COLORS), [COLORS]);
   const { user } = useAuth();
   const firstName = user?.name?.trim().split(/\s+/)[0];
-  const greeting = firstName ? `${getGreeting()}, ${firstName}` : getGreeting();
+  const greeting = getGreeting();
   const { tasks, isLoading, toggleTask, toggleFavorite, togglePin, deleteTask, duplicateTask, getCategoryName } = useApp();
 
   const [searchText, setSearchText] = useState('');
@@ -167,7 +167,15 @@ export default function TasksScreen({ navigation }) {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <Header title="My Tasks" right={<ProfileAvatarButton />} />
-      <Text style={styles.greeting}>{greeting}</Text>
+      <Text style={styles.greeting} accessibilityRole="header">
+        {greeting}
+        {firstName ? (
+          <>
+            {', '}
+            <Text style={styles.greetingName}>{firstName}</Text>
+          </>
+        ) : null}
+      </Text>
 
       <View style={styles.progressCard}>
         <View style={styles.progressHeader}>
@@ -344,10 +352,16 @@ const createStyles = (COLORS) => StyleSheet.create({
     backgroundColor: COLORS.background,
   },
   greeting: {
-    ...TYPOGRAPHY.secondary,
-    color: COLORS.textSecondary,
+    fontFamily: FONTS.bold,
+    fontSize: 28,
+    lineHeight: 36,
+    color: COLORS.textPrimary,
     paddingHorizontal: SIZES.screenPadding,
-    paddingBottom: SPACING.sm,
+    paddingTop: SPACING.xs,
+    paddingBottom: SPACING.md,
+  },
+  greetingName: {
+    color: COLORS.primary,
   },
   progressCard: {
     marginHorizontal: SIZES.screenPadding,

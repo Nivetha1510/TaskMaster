@@ -23,7 +23,7 @@ const DURATIONS = [
 const pad = (number) => String(number).padStart(2, '0');
 const formatClock = (seconds) => `${pad(Math.floor(seconds / 60))}:${pad(seconds % 60)}`;
 
-export default function FocusScreen() {
+export default function FocusScreen({ navigation }) {
   const { colors: COLORS } = useTheme();
   const styles = useMemo(() => createStyles(COLORS), [COLORS]);
   const { tasks } = useApp();
@@ -136,6 +136,20 @@ export default function FocusScreen() {
           ) : null}
         </View>
 
+        <TouchableOpacity
+          style={styles.habitsCard}
+          onPress={() => navigation.navigate('Habits')}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+        >
+          <Ionicons name="water" size={24} color={COLORS.primary} />
+          <View style={styles.habitsText}>
+            <Text style={styles.habitsTitle}>Healthy habits</Text>
+            <Text style={styles.habitsMeta}>Hourly reminders to drink water, walk and stretch</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color={COLORS.textSecondary} />
+        </TouchableOpacity>
+
         <Text style={styles.sectionTitle}>Focus on</Text>
         {pendingTasks.length === 0 ? (
           <Text style={styles.empty}>No pending tasks. Add one from the Tasks tab.</Text>
@@ -215,6 +229,27 @@ const createStyles = (COLORS) => StyleSheet.create({
   stopText: {
     ...TYPOGRAPHY.button,
     color: COLORS.error,
+  },
+  habitsCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: SPACING.md,
+    marginTop: SPACING.xl,
+    borderRadius: RADIUS.md,
+    borderWidth: SIZES.cardBorder,
+    borderColor: COLORS.divider,
+  },
+  habitsText: {
+    flex: 1,
+    marginHorizontal: SPACING.md,
+  },
+  habitsTitle: {
+    ...TYPOGRAPHY.taskTitle,
+    color: COLORS.textPrimary,
+  },
+  habitsMeta: {
+    ...TYPOGRAPHY.secondary,
+    color: COLORS.textSecondary,
   },
   sectionTitle: {
     ...TYPOGRAPHY.sectionTitle,

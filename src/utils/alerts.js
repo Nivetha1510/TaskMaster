@@ -10,6 +10,11 @@ const startOfDay = (date) => {
 //   overdue  - past its due date (or due time, when it has one)
 //   today    - due today and not overdue yet
 //   reminder - its reminder time has passed, but it is due later than today
+// A cleared alert stays hidden until it changes kind (for example due today -> overdue).
+// `dismissed` maps taskId -> the kind that was cleared.
+export const withoutDismissed = (alerts, dismissed = {}) =>
+  alerts.filter(({ task, kind }) => dismissed[task.id] !== kind);
+
 // Sorted with overdue first, then by due time.
 export function getTaskAlerts(tasks, remindersEnabled = true, now = new Date()) {
   const today = startOfDay(now).getTime();

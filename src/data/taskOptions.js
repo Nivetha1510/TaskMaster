@@ -5,6 +5,8 @@ export const DEFAULT_SETTINGS = {
   dailySummary: false,
   summaryTime: '08:00', // 'HH:MM', 24-hour
   defaultPriority: DEFAULT_PRIORITY,
+  dismissedAlerts: {}, // taskId -> alert kind the user cleared from the Profile list
+  habits: [], // repeating healthy-habit reminders, see data/habits.js
 };
 
 export const PRIORITY_OPTIONS = [
