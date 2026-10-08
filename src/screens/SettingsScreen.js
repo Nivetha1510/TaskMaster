@@ -38,7 +38,7 @@ export default function SettingsScreen({ navigation }) {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [deleteError, setDeleteError] = useState('');
 
-  const completedCount = tasks.filter((task) => task.completed).length;
+  const completedCount = tasks.filter((task) => task.completed && !task.archived).length;
 
   // Check the system permission now, and again whenever the app comes back to the
   // foreground (for example after the user changed it in the system settings).
@@ -212,9 +212,9 @@ export default function SettingsScreen({ navigation }) {
       <ConfirmModal
         visible={isClearOpen}
         title="Clear completed tasks"
-        message={`Delete ${completedCount} completed ${
+        message={`Clear ${completedCount} completed ${
           completedCount === 1 ? 'task' : 'tasks'
-        }? This can't be undone.`}
+        } from your list? They still count towards your Insights.`}
         confirmText="Clear"
         onConfirm={() => {
           clearCompleted();

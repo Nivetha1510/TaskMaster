@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { View, Text, SectionList, TouchableOpacity, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather, Ionicons } from '@expo/vector-icons';
@@ -44,6 +44,9 @@ const getMenuOptions = (task) => [
 // (iOS can drop a modal that opens while another is still dismissing).
 const MODAL_SWITCH_DELAY_MS = 300;
 
+// How long the "Undo" bar stays after clearing completed tasks.
+const UNDO_MS = 6000;
+
 const COMPARATORS = {
   recent: (a, b) => new Date(b.createdAt) - new Date(a.createdAt),
   due: (a, b) => {
@@ -62,7 +65,28 @@ export default function TasksScreen({ navigation }) {
   const { user } = useAuth();
   const firstName = user?.name?.trim().split(/\s+/)[0];
   const greeting = getGreeting();
-  const { tasks, isLoading, toggleTask, toggleFavorite, togglePin, deleteTask, duplicateTask, getCategoryName } = useApp();
+  const { tasks: allTasks, isLoading, clearCompleted, restoreArchived, toggleTask, toggleFavorite, togglePin, deleteTask, duplicateTask, getCategoryName } = useApp();
+
+  // Archived tasks (cleared from the list) stay in allTasks for Insights and progress.
+  const tasks = useMemo(() => allTasks.filter((task) => !task.archived), [allTasks]);
+  const [clearedIds, setClearedIds] = useState(null); // ids just cleared, for the undo bar
+  const undoTimer = useRef(null);
+
+  const handleClearCompleted = () => {
+    const ids = clearCompleted();
+    if (ids.length === 0) return;
+    setClearedIds(ids);
+    clearTimeout(undoTimer.current);
+    undoTimer.current = setTimeout(() => setClearedIds(null), UNDO_MS);
+  };
+
+  const handleUndoClear = () => {
+    restoreArchived(clearedIds);
+    clearTimeout(undoTimer.current);
+    setClearedIds(null);
+  };
+
+  useEffect(() => () => clearTimeout(undoTimer.current), []);
 
   const [searchText, setSearchText] = useState('');
   const [tab, setTab] = useState('pending'); // 'all' | 'pending' | 'completed'
@@ -113,7 +137,7 @@ export default function TasksScreen({ navigation }) {
   // (finished today + still pending and not due in the future).
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
-  const doneToday = tasks.filter(
+  const doneToday = allTasks.filter(
     (task) => task.completed && task.completedAt && new Date(task.completedAt) >= todayStart
   ).length;
   const pendingToday = tasks.filter((task) => !task.completed && !isUpcoming(task)).length;
@@ -276,6 +300,18 @@ export default function TasksScreen({ navigation }) {
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>{section.title}</Text>
             <Text style={styles.sectionCount}>{section.data.length}</Text>
+            {section.key === 'completed' ? (
+              <TouchableOpacity
+                style={styles.clearButton}
+                onPress={handleClearCompleted}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel={`Clear ${section.data.length} completed tasks`}
+              >
+                <Feather name="check-circle" size={14} color={COLORS.primary} />
+                <Text style={styles.clearText}>Clear completed</Text>
+              </TouchableOpacity>
+            ) : null}
           </View>
         )}
         stickySectionHeadersEnabled={false}
@@ -293,6 +329,17 @@ export default function TasksScreen({ navigation }) {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       />
+
+      {clearedIds ? (
+        <View style={styles.undoBar}>
+          <Text style={styles.undoText} numberOfLines={1}>
+            {clearedIds.length} {clearedIds.length === 1 ? 'task' : 'tasks'} cleared
+          </Text>
+          <TouchableOpacity onPress={handleUndoClear} hitSlop={8} accessibilityRole="button">
+            <Text style={styles.undoAction}>Undo</Text>
+          </TouchableOpacity>
+        </View>
+      ) : null}
 
       <FAB onPress={openAddTask} />
 
@@ -465,6 +512,39 @@ const createStyles = (COLORS) => StyleSheet.create({
   sectionTitle: {
     ...TYPOGRAPHY.sectionTitle,
     color: COLORS.textPrimary,
+  },
+  clearButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: 'auto',
+  },
+  clearText: {
+    ...TYPOGRAPHY.secondary,
+    color: COLORS.primary,
+    marginLeft: SPACING.xs,
+  },
+  undoBar: {
+    position: 'absolute',
+    left: SIZES.screenPadding,
+    right: SIZES.screenPadding * 2 + SIZES.fab,
+    bottom: SPACING.xl,
+    height: SIZES.fab,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: SPACING.lg,
+    borderRadius: RADIUS.md,
+    backgroundColor: COLORS.textPrimary,
+  },
+  undoText: {
+    ...TYPOGRAPHY.secondary,
+    flex: 1,
+    color: COLORS.background,
+  },
+  undoAction: {
+    ...TYPOGRAPHY.button,
+    color: COLORS.primary,
+    marginLeft: SPACING.md,
   },
   sectionCount: {
     ...TYPOGRAPHY.secondary,

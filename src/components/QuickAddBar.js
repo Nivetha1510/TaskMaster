@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import PrimaryButton from './PrimaryButton';
 import { useApp } from '../context/AppContext';
 import { parseQuickAdd } from '../utils/quickAdd';
+import { detectConflicts } from '../utils/conflicts';
 import { useSpeechInput } from '../utils/speech';
 import { formatDate, formatTime } from '../utils/date';
 import { formatEstimate, getPriorityColor, getPriorityLabel } from '../data/taskOptions';
@@ -26,13 +27,22 @@ import { RADIUS, SIZES, SPACING } from '../theme/spacing';
 export default function QuickAddBar() {
   const { colors: COLORS } = useTheme();
   const styles = useMemo(() => createStyles(COLORS), [COLORS]);
-  const { categories, settings, addTask } = useApp();
+  const { tasks, categories, settings, addTask } = useApp();
   const [isOpen, setIsOpen] = useState(false);
   const [text, setText] = useState('');
 
   const parsed = text.trim() ? parseQuickAdd(text, categories) : null;
   const priority = parsed?.priority ?? settings.defaultPriority;
   const category = parsed?.category ?? categories[0];
+
+  // Warn about a clash with another task, or an overloaded day, before adding.
+  const conflicts = parsed?.dueDate
+    ? detectConflicts(tasks, {
+        dueDate: parsed.dueDate,
+        dueTime: parsed.dueTime,
+        estimate: parsed.estimate,
+      })
+    : null;
 
   const chips = parsed
     ? [
@@ -143,13 +153,19 @@ export default function QuickAddBar() {
                       </View>
                     ))}
                   </View>
+                  {conflicts?.messages.map((message) => (
+                    <View key={message} style={styles.warning}>
+                      <Ionicons name="warning" size={16} color={COLORS.favorite} />
+                      <Text style={styles.warningText}>{message}</Text>
+                    </View>
+                  ))}
                 </View>
               ) : null}
 
               <View style={styles.actions}>
                 <PrimaryButton title="Cancel" onPress={close} style={styles.action} />
                 <PrimaryButton
-                  title="Add task"
+                  title={conflicts?.messages.length ? 'Add anyway' : 'Add task'}
                   onPress={handleSubmit}
                   disabled={!parsed}
                   style={styles.action}
@@ -278,6 +294,17 @@ const createStyles = (COLORS) => StyleSheet.create({
     color: COLORS.textPrimary,
     marginLeft: SPACING.xs,
     textTransform: 'capitalize',
+  },
+  warning: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginTop: SPACING.sm,
+  },
+  warningText: {
+    ...TYPOGRAPHY.secondary,
+    flex: 1,
+    color: COLORS.textPrimary,
+    marginLeft: SPACING.sm,
   },
   actions: {
     flexDirection: 'row',

@@ -24,6 +24,7 @@ import TimePickerModal from '../components/TimePickerModal';
 import OptionChips from '../components/OptionChips';
 import { useApp } from '../context/AppContext';
 import { formatDate, formatTime } from '../utils/date';
+import { detectConflicts } from '../utils/conflicts';
 import { ESTIMATE_OPTIONS, PRIORITY_OPTIONS, REMINDER_OPTIONS, REPEAT_OPTIONS } from '../data/taskOptions';
 import { generateId } from '../utils/id';
 import { useTheme } from '../theme/ThemeContext';
@@ -65,6 +66,7 @@ export default function AddTaskScreen({ navigation, route }) {
   const [categoryError, setCategoryError] = useState('');
   const [isCategoryPickerOpen, setIsCategoryPickerOpen] = useState(false);
   const [isNewCategoryOpen, setIsNewCategoryOpen] = useState(false);
+  const [conflictMessages, setConflictMessages] = useState([]);
   const [categoryToEdit, setCategoryToEdit] = useState(null); // null means adding
   const [categoryToDelete, setCategoryToDelete] = useState(null);
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
@@ -144,11 +146,27 @@ export default function AddTaskScreen({ navigation, route }) {
     setSubtasks((previous) => previous.filter((subtask) => subtask.id !== subtaskId));
   };
 
+  // Checks for clashes first; if there are any, asks before saving.
   const handleSave = () => {
     if (!categoryId) {
       setCategoryError('Please choose a category');
       return;
     }
+    const { messages } = detectConflicts(tasks, {
+      id: editingTask?.id,
+      dueDate,
+      dueTime,
+      estimate,
+    });
+    if (messages.length > 0) {
+      setConflictMessages(messages);
+      return;
+    }
+    commitSave();
+  };
+
+  const commitSave = () => {
+    setConflictMessages([]);
 
     // If something is typed in the subtask row but "+" wasn't tapped, keep it.
     const pendingSubtask = subtaskText.trim();
@@ -332,6 +350,15 @@ export default function AddTaskScreen({ navigation, route }) {
           .map((category) => category.name)}
         onSave={handleSaveCategory}
         onCancel={() => setIsNewCategoryOpen(false)}
+      />
+
+      <ConfirmModal
+        visible={conflictMessages.length > 0}
+        title="Schedule conflict"
+        message={[...conflictMessages, 'Save this task anyway?'].join('\n\n')}
+        confirmText="Save anyway"
+        onConfirm={commitSave}
+        onCancel={() => setConflictMessages([])}
       />
 
       <ConfirmModal

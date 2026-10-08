@@ -4,6 +4,7 @@ import React, {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 import { useAuth } from './AuthContext';
@@ -102,8 +103,30 @@ export function AppProvider({ children }) {
     setSettings((prev) => ({ ...prev, ...updates }));
   }, []);
 
+  // "Clear completed" archives finished tasks instead of deleting them: they leave the
+  // Tasks list but still count towards Insights (streak, weekly chart). Returns the ids
+  // that were archived so the caller can offer an undo.
+  const tasksRef = useRef(tasks);
+  tasksRef.current = tasks;
+
   const clearCompleted = useCallback(() => {
-    setTasks((prev) => prev.filter((task) => !task.completed));
+    const ids = tasksRef.current
+      .filter((task) => task.completed && !task.archived)
+      .map((task) => task.id);
+    if (ids.length > 0) {
+      const archived = new Set(ids);
+      setTasks((prev) =>
+        prev.map((task) => (archived.has(task.id) ? { ...task, archived: true } : task))
+      );
+    }
+    return ids;
+  }, []);
+
+  const restoreArchived = useCallback((ids) => {
+    const restored = new Set(ids);
+    setTasks((prev) =>
+      prev.map((task) => (restored.has(task.id) ? { ...task, archived: false } : task))
+    );
   }, []);
 
   const addTask = useCallback(
@@ -156,7 +179,15 @@ export function AppProvider({ children }) {
       const now = new Date().toISOString();
       const completed = !task.completed;
       let next = prev.map((item) =>
-        item.id === taskId ? { ...item, completed, completedAt: completed ? now : null } : item
+        item.id === taskId
+          ? {
+              ...item,
+              completed,
+              completedAt: completed ? now : null,
+              // Un-completing an archived task brings it back to the list.
+              ...(completed ? {} : { archived: false }),
+            }
+          : item
       );
 
       if (completed && task.repeat && task.dueDate) {
@@ -295,6 +326,7 @@ export function AppProvider({ children }) {
       deleteTask,
       duplicateTask,
       clearCompleted,
+      restoreArchived,
       updateSettings,
       addCategory,
       updateCategory,
@@ -315,6 +347,7 @@ export function AppProvider({ children }) {
       deleteTask,
       duplicateTask,
       clearCompleted,
+      restoreArchived,
       updateSettings,
       addCategory,
       updateCategory,

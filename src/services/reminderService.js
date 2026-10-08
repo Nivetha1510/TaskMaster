@@ -31,9 +31,78 @@ if (isSupported) {
   });
 }
 
+// ---- Web: browser notifications, shown while the page is open ----
+// Browsers cannot schedule notifications for a closed page, so on web the habit reminders
+// are timers that fire while TaskMaster is open in a tab.
+const hasWebNotifications = Platform.OS === 'web' && typeof Notification !== 'undefined';
+const webTimers = new Map(); // key -> { id, kind: 'timeout' | 'interval' }
+
+function showWebNotification(title, body) {
+  try {
+    new Notification(title, { body, icon: '/favicon.ico' });
+  } catch (error) {
+    console.warn('Could not show notification:', error);
+  }
+}
+
+function clearWebTimer(key) {
+  const timer = webTimers.get(key);
+  if (!timer) return;
+  if (timer.kind === 'interval') clearInterval(timer.id);
+  else clearTimeout(timer.id);
+  webTimers.delete(key);
+}
+
+// Fires at hour:minute every day.
+function scheduleDaily(key, slot, title, body) {
+  const next = new Date();
+  next.setHours(slot.hour, slot.minute, 0, 0);
+  if (next.getTime() <= Date.now()) next.setDate(next.getDate() + 1);
+  const id = setTimeout(() => {
+    showWebNotification(title, body);
+    scheduleDaily(key, slot, title, body);
+  }, next.getTime() - Date.now());
+  webTimers.set(key, { id, kind: 'timeout' });
+}
+
+function syncWebHabits(habits) {
+  if (!hasWebNotifications || Notification.permission !== 'granted') {
+    [...webTimers.keys()].forEach(clearWebTimer);
+    return;
+  }
+  const wanted = new Set();
+  habits
+    .filter((habit) => habit.enabled)
+    .forEach((habit) => {
+      if (habit.intervalMinutes === TEST_INTERVAL) {
+        const key = `${HABIT_PREFIX}${habit.id}-test`;
+        wanted.add(key);
+        if (webTimers.has(key)) return; // keep the running countdown
+        const id = setInterval(
+          () => showWebNotification(habit.title, habit.message),
+          TEST_INTERVAL * 60 * 1000
+        );
+        webTimers.set(key, { id, kind: 'interval' });
+        return;
+      }
+      getHabitSlots(habit).forEach((slot, index) => {
+        const key = `${HABIT_PREFIX}${habit.id}-${index}`;
+        wanted.add(key);
+        clearWebTimer(key);
+        scheduleDaily(key, slot, habit.title, habit.message);
+      });
+    });
+  [...webTimers.keys()].filter((key) => !wanted.has(key)).forEach(clearWebTimer);
+}
+
 // 'granted' | 'denied' (blocked in system settings) | 'undetermined' | 'unsupported' (web)
 // | 'expo-go' (Android Expo Go, which has no notification support)
 export async function getNotificationStatus() {
+  if (Platform.OS === 'web') {
+    if (!hasWebNotifications) return 'unsupported';
+    if (Notification.permission === 'granted') return 'granted';
+    return Notification.permission === 'denied' ? 'denied' : 'undetermined';
+  }
   if (isExpoGoAndroid) return 'expo-go';
   if (!isSupported) return 'unsupported';
   try {
@@ -48,12 +117,58 @@ export async function getNotificationStatus() {
 
 // Asks for permission if it has not been decided yet. Returns true when notifications are allowed.
 export async function ensurePermission() {
+  if (hasWebNotifications) {
+    if (Notification.permission === 'granted') return true;
+    if (Notification.permission === 'denied') return false;
+    return (await Notification.requestPermission()) === 'granted';
+  }
   if (!isSupported) return false;
   const current = await Notifications.getPermissionsAsync();
   if (current.granted) return true;
   if (!current.canAskAgain) return false;
   const requested = await Notifications.requestPermissionsAsync();
   return requested.granted;
+}
+
+// Shows a notification about 5 seconds from now, so notifications can be tried right away.
+// Returns { ok: true } or { error } explaining why it cannot work here.
+export async function sendTestNotification() {
+  if (hasWebNotifications) {
+    if (!(await ensurePermission())) {
+      return { error: 'Notifications are blocked. Allow them in your browser settings.' };
+    }
+    setTimeout(
+      () => showWebNotification('Drink water', 'This is a test reminder. Notifications are working!'),
+      5000
+    );
+    return { ok: true };
+  }
+  if (isExpoGoAndroid) {
+    return { error: 'Expo Go on Android cannot show notifications. Use a development build.' };
+  }
+  if (!isSupported) return { error: 'Notifications only work in the mobile app, not the browser.' };
+  try {
+    if (!(await ensurePermission())) {
+      return { error: 'Notifications are blocked. Allow them in your phone settings.' };
+    }
+    if (Platform.OS === 'android') {
+      await Notifications.setNotificationChannelAsync(HABIT_CHANNEL_ID, {
+        name: 'Healthy habits',
+        importance: Notifications.AndroidImportance.DEFAULT,
+      });
+    }
+    await Notifications.scheduleNotificationAsync({
+      content: { title: 'Drink water', body: 'This is a test reminder. Notifications are working!' },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+        seconds: 5,
+        channelId: HABIT_CHANNEL_ID,
+      },
+    });
+    return { ok: true };
+  } catch (error) {
+    return { error: 'Could not send the test notification.' };
+  }
 }
 
 // When the reminder should fire, or null if there is nothing to schedule.
@@ -90,6 +205,10 @@ export async function syncReminders(
   tasks,
   { remindersEnabled = true, dailySummary = false, summaryTime = '08:00', habits = [] } = {}
 ) {
+  if (hasWebNotifications) {
+    syncWebHabits(habits);
+    return;
+  }
   if (!isSupported) return;
   try {
     const wanted = (remindersEnabled ? tasks : [])

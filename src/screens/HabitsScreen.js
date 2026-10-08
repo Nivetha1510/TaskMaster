@@ -6,7 +6,7 @@ import Header from '../components/Header';
 import PrimaryButton from '../components/PrimaryButton';
 import { useApp } from '../context/AppContext';
 import { HABIT_PRESETS, describeHabit } from '../data/habits';
-import { ensurePermission, getNotificationStatus } from '../services/reminderService';
+import { ensurePermission, getNotificationStatus, sendTestNotification } from '../services/reminderService';
 import { generateId } from '../utils/id';
 import { useTheme } from '../theme/ThemeContext';
 import { TYPOGRAPHY } from '../theme/typography';
@@ -25,6 +25,7 @@ export default function HabitsScreen({ navigation }) {
   const habits = settings.habits ?? [];
 
   const [status, setStatus] = useState('granted');
+  const [testResult, setTestResult] = useState('');
 
   // Re-check when the app returns to the foreground (e.g. after changing phone settings).
   useEffect(() => {
@@ -39,6 +40,16 @@ export default function HabitsScreen({ navigation }) {
     await ensurePermission();
     setStatus(await getNotificationStatus());
     updateSettings({}); // re-schedules now that permission may have changed
+  };
+
+  const handleTest = async () => {
+    setTestResult('');
+    const result = await sendTestNotification();
+    setTestResult(
+      result.ok
+        ? 'Sent! A notification should appear in about 5 seconds. Leave the app or lock your screen to see it.'
+        : result.error
+    );
   };
 
   const toggleHabit = (habitId, enabled) =>
@@ -134,6 +145,12 @@ export default function HabitsScreen({ navigation }) {
           </>
         ) : null}
 
+        <TouchableOpacity style={styles.testButton} onPress={handleTest} accessibilityRole="button">
+          <Ionicons name="notifications-outline" size={18} color={COLORS.primary} />
+          <Text style={styles.testText}>Send a test notification</Text>
+        </TouchableOpacity>
+        {testResult ? <Text style={styles.testResult}>{testResult}</Text> : null}
+
         <PrimaryButton
           title="Create custom habit"
           onPress={() => navigation.navigate('HabitEdit')}
@@ -215,6 +232,23 @@ const createStyles = (COLORS) => StyleSheet.create({
     color: COLORS.textPrimary,
     marginTop: SPACING.lg,
     marginBottom: SPACING.md,
+  },
+  testButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: SPACING.md,
+    marginTop: SPACING.md,
+  },
+  testText: {
+    ...TYPOGRAPHY.button,
+    color: COLORS.primary,
+    marginLeft: SPACING.sm,
+  },
+  testResult: {
+    ...TYPOGRAPHY.secondary,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
   },
   createButton: {
     marginTop: SPACING.lg,

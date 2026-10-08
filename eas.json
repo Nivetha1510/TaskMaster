@@ -1,0 +1,28 @@
+{
+  "cli": {
+    "version": ">= 16.0.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "android": { "buildType": "apk" }
+    },
+    "preview": {
+      "distribution": "internal",
+      "android": { "buildType": "apk" },
+      "env": {
+        "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyAyN7hIc7IgiZ9mmr0_q8bSdP2YRtlPl6I",
+        "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "taskmaster-c893f.firebaseapp.com",
+        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "taskmaster-c893f",
+        "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "taskmaster-c893f.firebasestorage.app",
+        "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "554304880101",
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:554304880101:web:eb6c1d31b1f3f0fb3d430c"
+      }
+    },
+    "production": {
+      "autoIncrement": true
+    }
+  }
+}
